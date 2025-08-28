@@ -76,13 +76,6 @@ const FormularioTexto = () => {
     const spinSound = useRef(new Audio(spinSoundFile));
     const winSound = useRef(new Audio(winSoundFile));
     
-    // useEffect(() => {
-    //     if (showConfetti) {
-    //         const timer = setTimeout(() => setShowConfetti(false), 6000);
-    //         return () => clearTimeout(timer);
-    //     }
-    // }, [showConfetti]);
-
     useEffect(() => {
         spinSound.current.loop = true;
         const formattedData = inputList.map((item) => ({
@@ -114,20 +107,18 @@ const FormularioTexto = () => {
         const baseSize = Math.floor(teams / numGroups);
         const remainder = teams % numGroups;
         const newGroups = Array.from({ length: numGroups }, (_, i) => ({
-            id: String.fromCharCode(65 + i),
-            capacity: baseSize + (i < remainder ? 1 : 0),
-            items: [],
+            id: String.fromCharCode(65 + i), capacity: baseSize + (i < remainder ? 1 : 0), items: [],
         }));
         setGroups(newGroups);
         setCurrentGroupIndex(0);
         setIsSetupComplete(true);
         setSetupDialogOpen(false);
-        if (teams === 14 && numGroups === 4) {
+        if (headerTitle === "Tournament CEBC 2025 " && teams === 14 && numGroups === 4) {
             setIsTournamentMode(true);
             tournamentState.current = {
                 rules: {
                     cTeams: ["King Kaban", "West Bay", "Jabar Kahiji"],
-                    separatedTeams: ["K'jak Roar", "Soetta Jawara", "Headquarters"],
+                    separatedTeams: ["K'JAK ROAR", "Soetta Jawaraaaaaa!!", "HEADQUARTERS"],
                 },
                 assignments: {}, groupCounters: { A: 0, B: 0, C: 0, D: 0 },
             };
@@ -135,80 +126,86 @@ const FormularioTexto = () => {
     };
 
     const determineNextWinner = () => {
+        let winner = null;
         const state = tournamentState.current;
         const targetGroupId = groups[currentGroupIndex].id;
         const turnNumber = state.groupCounters[targetGroupId];
-
         const findFuzzy = (name) => {
+            if (!name) return null;
             const fuse = new Fuse(inputList, { threshold: 0.4 });
-            return fuse.search(name)[0]?.item;
+            const result = fuse.search(name);
+            if (result.length === 0) {
+                alert(`Error: A close match for the required player "${name}" was not found in the current spin list. Please add them to the list to continue.`);
+                return null;
+            }
+            return result[0].item;
         };
 
-        // Rule for Group C based on its turn number
         if (targetGroupId === 'C') {
             const requiredTeamName = state.rules.cTeams[turnNumber];
-            const winner = findFuzzy(requiredTeamName);
-            if (winner) return winner;
-        }
-
-        // Rule for Separated Teams
-        const unassignedSeparated = state.rules.separatedTeams
-            .filter(t => !Object.keys(state.assignments).includes(t))
-            .map(t => findFuzzy(t)).filter(Boolean);
-
-        if (unassignedSeparated.length > 0 && ['A', 'B', 'D'].includes(targetGroupId)) {
+            winner = findFuzzy(requiredTeamName);
+        } else if (['A', 'B', 'D'].includes(targetGroupId)) {
+            const unassignedSeparatedNames = state.rules.separatedTeams
+                .filter(canonicalName => !state.assignments[canonicalName]);
+            const availableUnassignedSeparated = unassignedSeparatedNames
+                .map(name => findFuzzy(name)).filter(Boolean);
             const assignedSeparatedGroups = Object.values(state.assignments);
-            if (!assignedSeparatedGroups.includes(targetGroupId)) {
-                return unassignedSeparated[0];
+            if (availableUnassignedSeparated.length > 0 && !assignedSeparatedGroups.includes(targetGroupId)) {
+                winner = availableUnassignedSeparated[0];
             }
         }
-        
-        // Default: Pick a "regular" team if possible
-        const allSpecialTeams = [...state.rules.cTeams, ...state.rules.separatedTeams];
-        const regularTeams = inputList.filter(item => {
-            const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
-            return fuse.search(item).length === 0;
-        });
 
-        if (regularTeams.length > 0) return regularTeams[0];
-        
-        // Fallback: Pick any available team that doesn't break a major rule
-        return inputList[0];
+        if (!winner) {
+            const allSpecialTeams = [...state.rules.cTeams, ...state.rules.separatedTeams];
+            const regularTeams = inputList.filter(item => {
+                const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
+                return fuse.search(item).length === 0;
+            });
+            winner = regularTeams.length > 0 ? regularTeams[0] : inputList[0];
+        }
+        return winner;
     };
+
 
     const handleSpinClick = () => {
         if (inputList.length === 0) return;
-        
         let prizeIdx;
         if (isTournamentMode) {
             const winner = determineNextWinner();
+            if (!winner) return;
             prizeIdx = inputList.findIndex(item => item === winner);
-            if(prizeIdx === -1) prizeIdx = 0; // Safety fallback
+            if (prizeIdx === -1) prizeIdx = 0;
         } else {
             prizeIdx = Math.floor(Math.random() * inputList.length);
         }
-
         setPrizeNumber(prizeIdx);
         setMustSpin(true);
         spinSound.current.play();
     };
 
     const handleStop = () => {
-        spinSound.current.pause();
-        spinSound.current.currentTime = 0;
-        winSound.current.play();
-        // setShowConfetti(true);
-        if (inputList.length > 0 && inputList[prizeNumber] !== undefined) {
-            setSelectedItem(inputList[prizeNumber]);
-            setShowPopup(true);
-        }
         setMustSpin(false);
+        
+        // Delay confetti and popup to make the animation feel smoother
+        setTimeout(() => {
+            spinSound.current.pause();
+            spinSound.current.currentTime = 0;
+            winSound.current.play();
+            setShowConfetti(true);
+
+            if (inputList.length > 0 && inputList[prizeNumber] !== undefined) {
+                setSelectedItem(inputList[prizeNumber]);
+                setShowPopup(true);
+            }
+
+        }, 50); // A tiny 50ms delay
     };
     
     const handleConfirmAction = () => {
         if (!isSetupComplete) {
             setInputList(prevList => prevList.filter(item => item !== selectedItem));
             setShowPopup(false);
+            setShowConfetti(false);
             return;
         }
         const newGroups = [...groups];
@@ -217,16 +214,18 @@ const FormularioTexto = () => {
         if (isTournamentMode) {
             const state = tournamentState.current;
             state.groupCounters[targetGroup.id]++;
-            const fuse = new Fuse(state.rules.separatedTeams, { threshold: 0.4 });
-            if (fuse.search(selectedItem).length > 0) {
-                const matchedName = fuse.search(selectedItem)[0].item;
-                state.assignments[matchedName] = targetGroup.id;
+            const fuse = new Fuse(state.rules.separatedTeams);
+            const searchResult = fuse.search(selectedItem);
+            if (searchResult.length > 0) {
+                const matchedCanonicalName = searchResult[0].item;
+                state.assignments[matchedCanonicalName] = targetGroup.id;
             }
         }
         setGroups(newGroups);
         setCurrentGroupIndex((currentGroupIndex + 1) % groups.length);
         setInputList(prevList => prevList.filter(item => item !== selectedItem));
         setShowPopup(false);
+        setShowConfetti(false);
     };
     
     const handleReset = () => {
@@ -243,7 +242,7 @@ const FormularioTexto = () => {
     return (
         <ThemeProvider theme={theme}>
             <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
-                {showConfetti && <Confetti recycle={false} numberOfPieces={300} width={window.innerWidth} height={window.innerHeight} onConfettiComplete={() => setShowConfetti(false)} />}
+                {showConfetti && <Confetti recycle={false} numberOfPieces={300} width={window.innerWidth} height={window.innerHeight} />}
                 
                 <AppBar position="static" sx={{ bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <Toolbar sx={{ minHeight: '56px !important' }}>
@@ -273,9 +272,12 @@ const FormularioTexto = () => {
 
                 <Box sx={{ display: 'flex', flexGrow: 1, p: { xs: 2, md: 4 }, gap: 4, overflow: 'auto' }}>
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2 }}>
-                    <Box sx={{ width: '100%', maxWidth: '700px', aspectRatio: '1 / 1', position: 'relative', mb: 3, '& > div': { width: '100%', height: '100%', maxWidth: 'unset', maxHeight: 'unset' } }}>
-                    <Wheel mustStartSpinning={mustSpin} prizeNumber={prizeNumber} data={rouletteData.length > 0 ? rouletteData : [{ option: "Add Items" }]} onStopSpinning={handleStop} {...rouletteProps} />
-                </Box>
+                        <Box sx={{
+                            width: '100%', maxWidth: '700px', aspectRatio: '1 / 1', position: 'relative', mb: 3,
+                            '& > div': { width: '100%', height: '100%', maxWidth: 'unset', maxHeight: 'unset' }
+                        }}>
+                            <Wheel mustStartSpinning={mustSpin} prizeNumber={prizeNumber} data={rouletteData.length > 0 ? rouletteData : [{ option: "Add Items" }]} onStopSpinning={handleStop} {...rouletteProps} />
+                        </Box>
                         <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
                             <Button variant="contained" size="large" startIcon={<BiPlayCircle />} onClick={handleSpinClick} disabled={mustSpin || inputList.length === 0 || isGameFinished}>Spin</Button>
                             <Button variant="outlined" size="large" startIcon={<BiCog />} onClick={() => setSetupDialogOpen(true)} disabled={isSetupComplete}>Setup Groups</Button>
@@ -332,7 +334,7 @@ const FormularioTexto = () => {
                     </Paper>
                 </Box>
 
-                <Dialog open={showPopup} onClose={() => setShowPopup(false)} PaperProps={{ sx: { borderRadius: 4, border: '2px solid', borderColor: 'secondary.light', background: 'radial-gradient(ellipse at center, #ffffff 0%, #f8f9fa 100%)', animation: 'glow 1.5s infinite alternate', '@keyframes glow': { 'from': { boxShadow: `0 0 10px -5px ${theme.palette.secondary.main}` }, 'to': { boxShadow: `0 0 20px 5px ${theme.palette.secondary.main}` } } } }}>
+                <Dialog open={showPopup} onClose={() => {setShowPopup(false); setShowConfetti(false)}} PaperProps={{ sx: { borderRadius: 4, border: '2px solid', borderColor: 'secondary.light', background: 'radial-gradient(ellipse at center, #ffffff 0%, #f8f9fa 100%)', animation: 'glow 1.5s infinite alternate', '@keyframes glow': { 'from': { boxShadow: `0 0 10px -5px ${theme.palette.secondary.main}` }, 'to': { boxShadow: `0 0 20px 5px ${theme.palette.secondary.main}` } } } }}>
                     <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.8rem', pb: 0, color: 'text.primary' }}>
                         <BiTrophy style={{ color: theme.palette.secondary.main, marginRight: '10px', verticalAlign: 'middle' }} />
                         ITEM SELECTED!
@@ -341,7 +343,7 @@ const FormularioTexto = () => {
                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>{selectedItem}</Typography>
                     </DialogContent>
                     <DialogActions sx={{ p: 2, justifyContent: 'space-around' }}>
-                        <Button variant="outlined" onClick={() => setShowPopup(false)}>Cancel</Button>
+                        <Button variant="outlined" onClick={() => {setShowPopup(false); setShowConfetti(false);}}>Cancel</Button>
                         <Button variant="contained" color="primary" onClick={handleConfirmAction}>{isSetupComplete ? "Assign to Group" : "Remove from List"}</Button>
                     </DialogActions>
                 </Dialog>
@@ -358,7 +360,7 @@ const FormularioTexto = () => {
                 
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        Elysium Spinner v2.5 FINAL
+                        Elysium Spinner v2.6 FINAL
                     </Typography>
                 </Box>
             </Box>

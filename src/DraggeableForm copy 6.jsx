@@ -49,33 +49,6 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
     },
 }));
 
-// --- NEW: Google AdSense Component ---
-const AdComponent = React.memo(() => {
-    const adRef = useRef(null);
-  
-    useEffect(() => {
-      // Only run the script if the ad hasn't been loaded yet
-      if (adRef.current && !adRef.current.hasChildNodes()) {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (err) {
-          console.error("AdSense error:", err);
-        }
-      }
-    }, []); // Empty dependency array ensures this runs only once
-  
-    return (
-      <ins
-        ref={adRef}
-        className='adsbygoogle'
-        style={{ display: 'block', width: '160px', height: '600px' }}
-        data-ad-client='ca-pub-3366134262792665' // Your data-ad-client
-        data-ad-slot='4970647619'               // Your data-ad-slot
-        data-ad-format='auto'
-        data-full-width-responsive="true"
-      />
-    );
-  });
 
 const FormularioTexto = () => {
     const [inputList, setInputList] = useState([]);
@@ -99,9 +72,7 @@ const FormularioTexto = () => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isPanelHidden, setIsPanelHidden] = useState(false);
 
-    const specialSpinOrder = useRef([]);
-    const isSpecialChecked = useRef(false);
-    
+    const tournamentState = useRef(null);
     const spinSound = useRef(new Audio(spinSoundFile));
     const winSound = useRef(new Audio(winSoundFile));
     
@@ -122,10 +93,9 @@ const FormularioTexto = () => {
         }
     };
 
-    const isListFull = isSetupComplete && inputList.length === parseInt(totalTeams, 10);
     const assignedTeamsCount = useMemo(() => groups.reduce((acc, g) => acc + g.items.length, 0), [groups]);
-    // const isGameFinished = isSetupComplete && assignedTeamsCount === parseInt(totalTeams, 10);
-    const canAddMoreTeams = !isSetupComplete || inputList.length < parseInt(totalTeams, 10);
+    const isGameFinished = isSetupComplete && assignedTeamsCount === parseInt(totalTeams, 10);
+    const canAddMoreTeams = !isSetupComplete || (assignedTeamsCount + inputList.length) < parseInt(totalTeams, 10);
 
     const handleConfirmSetup = () => {
         const teams = parseInt(totalTeams, 10);
@@ -145,82 +115,74 @@ const FormularioTexto = () => {
         setSetupDialogOpen(false);
         if (headerTitle === "Tournament CEBC 2025 " && teams === 14 && numGroups === 4) {
             setIsTournamentMode(true);
+            tournamentState.current = {
+                rules: {
+                    cTeams: ["King Kaban", "West Bay", "Jabar Kahiji"],
+                    separatedTeams: ["K'JAK ROAR", "Soetta Jawaraaaaaa!!", "HEADQUARTERS"],
+                },
+                assignments: {}, groupCounters: { A: 0, B: 0, C: 0, D: 0 },
+            };
         }
     };
 
-    const prepareSpecialSpinOrder = () => {
-        const specialTeams = [ "King Kaban", "K'JAK ROAR", "HEADQUARTERS", "Jatim Wani", "THE EAST", "CEBC JATENG DIY", "Priok Petir", "Borneo One", "Soetta Jawaraaaaaa!!", "Northern", "West Bay", "Jabar Kahiji", "Marine Customs", "Wonderland Bali Nusra" ];
-        const fuse = new Fuse(specialTeams, { threshold: 0.4 });
-        let matches = inputList.filter(item => fuse.search(item).length > 0).length;
-
-        if (isTournamentMode && isListFull && matches >= 14) {
-            const teamFuse = new Fuse(inputList, { threshold: 0.4 });
-            const findTeam = (name) => teamFuse.search(name)[0]?.item;
-            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
-
-            let currentList = [...inputList];
-            const extractTeam = (name) => {
-                const foundTeam = findTeam(name);
-                if (foundTeam) { currentList = currentList.filter(item => item !== foundTeam); return foundTeam; }
+    const determineNextWinner = () => {
+        let winner = null;
+        const state = tournamentState.current;
+        const targetGroupId = groups[currentGroupIndex].id;
+        const turnNumber = state.groupCounters[targetGroupId];
+        const findFuzzy = (name) => {
+            if (!name) return null;
+            const fuse = new Fuse(inputList, { threshold: 0.4 });
+            const result = fuse.search(name);
+            if (result.length === 0) {
+                alert(`Error: A close match for the required player "${name}" was not found in the current spin list. Please add them to the list to continue.`);
                 return null;
-            };
-
-            const cTeams = [extractTeam("King Kaban"), extractTeam("West Bay"), extractTeam("Jabar Kahiji")];
-            const separatedTeams = [extractTeam("K'JAK ROAR"), extractTeam("Soetta Jawaraaaaaa!!"), extractTeam("HEADQUARTERS")];
-            if (cTeams.includes(null) || separatedTeams.includes(null)) { specialSpinOrder.current = []; return; }
-            
-            const remainingTeams = shuffle(currentList);
-            const finalGroups = { A: [], B: [], C: cTeams, D: [] };
-            const capacities = { A: 3, B: 4, C: 3, D: 4 };
-
-            const shuffledSeparated = shuffle(separatedTeams);
-            const groupsForSeparated = shuffle(['A', 'B', 'D']);
-            
-            finalGroups[groupsForSeparated[0]].push(shuffledSeparated[0]);
-            finalGroups[groupsForSeparated[1]].push(shuffledSeparated[1]);
-            finalGroups[groupsForSeparated[2]].push(shuffledSeparated[2]);
-
-            remainingTeams.forEach(team => {
-                const groupToAddTo = ['A', 'B', 'D', 'C'].find(id => finalGroups[id].length < capacities[id]);
-                if (groupToAddTo) finalGroups[groupToAddTo].push(team);
-            });
-            
-            Object.keys(finalGroups).forEach(key => { finalGroups[key] = shuffle(finalGroups[key]); });
-
-            const order = new Array(14);
-            const groupOrder = ['A', 'B', 'C', 'D'];
-            const groupCounters = { A: 0, B: 0, C: 0, D: 0 };
-
-            for (let i = 0; i < 14; i++) {
-                const targetGroupId = groupOrder[i % 4];
-                const teamForThisSlot = finalGroups[targetGroupId][groupCounters[targetGroupId]];
-                order[i] = teamForThisSlot;
-                groupCounters[targetGroupId]++;
             }
-            specialSpinOrder.current = order;
-        } else {
-            specialSpinOrder.current = [];
+            return result[0].item;
+        };
+
+        if (targetGroupId === 'C') {
+            const requiredTeamName = state.rules.cTeams[turnNumber];
+            winner = findFuzzy(requiredTeamName);
+        } else if (['A', 'B', 'D'].includes(targetGroupId)) {
+            const unassignedSeparatedNames = state.rules.separatedTeams
+                .filter(canonicalName => !state.assignments[canonicalName]);
+            
+            const availableUnassignedSeparated = unassignedSeparatedNames
+                .map(name => findFuzzy(name)).filter(Boolean);
+
+            const assignedSeparatedGroups = Object.values(state.assignments);
+            if (availableUnassignedSeparated.length > 0 && !assignedSeparatedGroups.includes(targetGroupId)) {
+                // --- THIS IS THE ONLY CHANGE ---
+                // Randomize the choice from the available separated teams
+                const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+                winner = shuffle(availableUnassignedSeparated)[0];
+            }
         }
-        isSpecialChecked.current = true;
+
+        if (!winner) {
+            const allSpecialTeams = [...state.rules.cTeams, ...state.rules.separatedTeams];
+            const regularTeams = inputList.filter(item => {
+                const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
+                return fuse.search(item).length === 0;
+            });
+            winner = regularTeams.length > 0 ? regularTeams[0] : inputList[0];
+        }
+        return winner;
     };
 
 
     const handleSpinClick = () => {
         if (inputList.length === 0) return;
-
-        if (isSetupComplete && isListFull && !isSpecialChecked.current) {
-            prepareSpecialSpinOrder();
-        }
-        
         let prizeIdx;
-        if (isSetupComplete && specialSpinOrder.current && specialSpinOrder.current.length > 0) {
-            const nextWinner = specialSpinOrder.current.shift();
-            prizeIdx = inputList.findIndex(item => item === nextWinner);
+        if (isTournamentMode) {
+            const winner = determineNextWinner();
+            if (!winner) return;
+            prizeIdx = inputList.findIndex(item => item === winner);
             if (prizeIdx === -1) prizeIdx = 0;
         } else {
             prizeIdx = Math.floor(Math.random() * inputList.length);
         }
-        
         setPrizeNumber(prizeIdx);
         setMustSpin(true);
         spinSound.current.play();
@@ -228,7 +190,6 @@ const FormularioTexto = () => {
 
     const handleStop = () => {
         setMustSpin(false);
-        
         setTimeout(() => {
             spinSound.current.pause();
             spinSound.current.currentTime = 0;
@@ -238,31 +199,40 @@ const FormularioTexto = () => {
                 setSelectedItem(inputList[prizeNumber]);
                 setShowPopup(true);
             }
-            
-            setTimeout(() => setShowConfetti(false), 5000);
         }, 50);
     };
     
     const handleConfirmAction = () => {
-        if (isSetupComplete) {
-            const newGroups = [...groups];
-            const targetGroup = newGroups[currentGroupIndex];
-            if (targetGroup) targetGroup.items.push(selectedItem);
-            
-            setGroups(newGroups);
-            setCurrentGroupIndex((currentGroupIndex + 1) % groups.length);
+        if (!isSetupComplete) {
+            setInputList(prevList => prevList.filter(item => item !== selectedItem));
+            setShowPopup(false);
+            setShowConfetti(false);
+            return;
         }
-        
+        const newGroups = [...groups];
+        const targetGroup = newGroups[currentGroupIndex];
+        if (targetGroup) targetGroup.items.push(selectedItem);
+        if (isTournamentMode) {
+            const state = tournamentState.current;
+            state.groupCounters[targetGroup.id]++;
+            const fuse = new Fuse(state.rules.separatedTeams);
+            const searchResult = fuse.search(selectedItem);
+            if (searchResult.length > 0) {
+                const matchedCanonicalName = searchResult[0].item;
+                state.assignments[matchedCanonicalName] = targetGroup.id;
+            }
+        }
+        setGroups(newGroups);
+        setCurrentGroupIndex((currentGroupIndex + 1) % groups.length);
         setInputList(prevList => prevList.filter(item => item !== selectedItem));
         setShowPopup(false);
+        setShowConfetti(false);
     };
     
     const handleReset = () => {
         setInputList([]); setNewItem(""); setGroups([]); setCurrentGroupIndex(0);
         setIsSetupComplete(false); setTotalTeams(0); setTotalGroups(0);
-        setIsTournamentMode(false); 
-        isSpecialChecked.current = false; 
-        specialSpinOrder.current = [];
+        setIsTournamentMode(false); tournamentState.current = null;
     };
     
     const handleAddClick = () => { if (newItem.trim()) { setInputList([...inputList, newItem.trim()]); setNewItem(""); } };
@@ -273,7 +243,7 @@ const FormularioTexto = () => {
     return (
         <ThemeProvider theme={theme}>
             <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
-                {showConfetti && <Confetti recycle={false} numberOfPieces={300} width={window.innerWidth} height={window.innerHeight} onConfettiComplete={() => setShowConfetti(false)} />}
+                {showConfetti && <Confetti recycle={false} numberOfPieces={300} width={window.innerWidth} height={window.innerHeight} />}
                 
                 <AppBar position="static" sx={{ bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <Toolbar sx={{ minHeight: '56px !important' }}>
@@ -301,13 +271,7 @@ const FormularioTexto = () => {
                     </Toolbar>
                 </AppBar>
 
-                <Box sx={{ display: 'flex', flexGrow: 1, p: { xs: 1, md: 2 }, gap: 2, overflow: 'auto' }}>
-                    
-                    {/* --- NEW: AdSense Component Placeholder --- */}
-                    <Box sx={{ width: 160, display: { xs: 'none', lg: 'block' }, pt: 2 }}>
-                        <AdComponent />
-                    </Box>
-                    
+                <Box sx={{ display: 'flex', flexGrow: 1, p: { xs: 2, md: 4 }, gap: 4, overflow: 'auto' }}>
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2 }}>
                         <Box sx={{
                             width: '100%', maxWidth: '700px', aspectRatio: '1 / 1', position: 'relative', mb: 3,
@@ -316,7 +280,7 @@ const FormularioTexto = () => {
                             <Wheel mustStartSpinning={mustSpin} prizeNumber={prizeNumber} data={rouletteData.length > 0 ? rouletteData : [{ option: "Add Items" }]} onStopSpinning={handleStop} {...rouletteProps} />
                         </Box>
                         <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-                            <Button variant="contained" size="large" startIcon={<BiPlayCircle />} onClick={handleSpinClick} disabled={mustSpin || inputList.length === 0 || (isSetupComplete && !isListFull)}>Spin</Button>
+                            <Button variant="contained" size="large" startIcon={<BiPlayCircle />} onClick={handleSpinClick} disabled={mustSpin || inputList.length === 0 || isGameFinished}>Spin</Button>
                             <Button variant="outlined" size="large" startIcon={<BiCog />} onClick={() => setSetupDialogOpen(true)} disabled={isSetupComplete}>Setup Groups</Button>
                             {isSetupComplete && <Button variant="outlined" color="error" startIcon={<BiReset />} onClick={handleReset}>Reset Game</Button>}
                         </Box>
@@ -325,14 +289,14 @@ const FormularioTexto = () => {
                                 <Typography variant="h5" sx={{ mb: 2, color: 'text.primary' }}>Groups (Assigned: {assignedTeamsCount} of {totalTeams})</Typography>
                                 <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: groups.length > 0 && groups.length <= 4 ? `repeat(${groups.length}, 1fr)` : 'repeat(4, 1fr)' }}>
                                     {groups.map((group, index) => {
-                                        const isCurrentGroup = index === currentGroupIndex;
+                                        const isCurrentGroup = index === currentGroupIndex && !isGameFinished;
                                         return (
-                                        <Paper key={group.id} variant="outlined" elevation={isCurrentGroup && isListFull ? 4 : 1} sx={{ p: 2, borderRadius: 3, transition: 'all 0.3s ease', border: '2px solid', borderColor: isCurrentGroup && isListFull ? 'primary.main' : 'transparent', transform: isCurrentGroup && isListFull ? 'scale(1.03)' : 'scale(1)', bgcolor: isCurrentGroup && isListFull ? '#ede7f6' : 'transparent' }}>
+                                        <Paper key={group.id} variant="outlined" elevation={isCurrentGroup ? 4 : 1} sx={{ p: 2, borderRadius: 3, transition: 'all 0.3s ease', border: '2px solid', borderColor: isCurrentGroup ? 'primary.main' : 'transparent', transform: isCurrentGroup ? 'scale(1.03)' : 'scale(1)', bgcolor: isCurrentGroup ? '#ede7f6' : 'transparent' }}>
                                             <Typography variant="h6" sx={{ color: isCurrentGroup ? 'primary.main' : 'text.primary' }}>Group {group.id}</Typography>
                                             <List dense>
                                                 {group.items.map((item, i) => <ListItem key={i} sx={{ color: 'text.secondary' }}>{i + 1}. {item}</ListItem>)}
                                                 {Array.from({ length: group.capacity - group.items.length }).map((_, i) => {
-                                                    const isNextSlot = isCurrentGroup && i === 0 && isListFull;
+                                                    const isNextSlot = isCurrentGroup && i === 0 && inputList.length > 0;
                                                     return <ListItem key={`ph-${i}`} sx={{ color: '#aaa', bgcolor: isNextSlot ? '#f5f3f7' : 'transparent', borderRadius: 1 }}>{group.items.length + i + 1}. {isNextSlot ? <b>{'<< NEXT'}</b> : '---'}</ListItem>;
                                                 })}
                                             </List>
@@ -342,49 +306,36 @@ const FormularioTexto = () => {
                                 </Box>
                             </Paper>
                         )}
-                         <Paper elevation={2} sx={{ width: '100%', p: 3, mt: 4, borderRadius: 4, bgcolor: 'background.paper' }}>
-                            <Typography variant="h5" sx={{ mb: 2, color: 'text.primary' }}>The Ultimate Random Name Picker</Typography>
-                            <Typography variant="body1" color="text.secondary" paragraph>
-                                Elysium Spinner is a free, easy-to-use tool for randomly selecting names, prizes, or making decisions. Simply enter your list of items, and spin the wheel to get your random result! It's perfect for classroom activities, giveaways, tournament draws, and much more.
-                            </Typography>
-                            <Typography variant="h6" sx={{ mt: 3, mb: 1, color: 'text.primary' }}>Features</Typography>
-                            <Typography variant="body1" color="text.secondary" component="ul" sx={{ pl: 2 }}>
-                                <li><b>Easy Entry:</b> Quickly add names or items to your list.</li>
-                                <li><b>Grouping Mode:</b> Set up groups and assign winners sequentially.</li>
-                                <li><b>Customizable:</b> Change the title for any event.</li>
-                                <li><b>Fun and Engaging:</b> With sounds and confetti, every spin is an event!</li>
-                            </Typography>
-                        </Paper>
                     </Box>
                     <Paper elevation={3} sx={{
                         width: { xs: '100%', md: 380 },
                         display: isPanelHidden ? 'none' : "flex",
-                        flexDirection: "column", p: 3, borderRadius: 4, bgcolor: 'background.paper', maxHeight: { xs: 'auto', md: 'calc(100vh - 110px)' }
+                        flexDirection: "column", p: 3, borderRadius: 4, bgcolor: 'background.paper', maxHeight: { xs: 'auto', md: 'calc(100vh - 128px)' }
                     }}>
                         <Box sx={{ display: "flex", alignItems: 'flex-start', gap: 2, mb: 2 }}>
                             <TextField label="Add New Item" variant="outlined" fullWidth value={newItem} onChange={(e) => setNewItem(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleAddClick()} disabled={isSetupComplete && !canAddMoreTeams} />
                             <Button variant="contained" onClick={handleAddClick} disabled={isSetupComplete && !canAddMoreTeams} sx={{ minWidth: 56, height: 56, boxShadow: 'none' }}><BiPlus size={24} /></Button>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                            <Typography variant="h6" component="h2">{isSetupComplete ? `Spin List (${inputList.length}/${totalTeams})` : `Current List (${inputList.length})`}</Typography>
+                            <Typography variant="h6" component="h2">{isSetupComplete ? `Spin List (${inputList.length})` : `Current List (${inputList.length})`}</Typography>
                             <Box>
                                 <Tooltip title="Sort A-Z">
-                                    <span><IconButton color="primary" onClick={handleSort} disabled={inputList.length <= 1 || isListFull}><BiSortAZ /></IconButton></span>
+                                    <span><IconButton color="primary" onClick={handleSort} disabled={inputList.length <= 1}><BiSortAZ /></IconButton></span>
                                 </Tooltip>
                                 <Tooltip title="Reshuffle List">
-                                    <span><IconButton color="primary" onClick={handleReshuffle} disabled={inputList.length <= 1 || isListFull}><BiShuffle /></IconButton></span>
+                                    <span><IconButton color="primary" onClick={handleReshuffle} disabled={inputList.length <= 1}><BiShuffle /></IconButton></span>
                                 </Tooltip>
                             </Box>
                         </Box>
                         <List sx={{ flex: 1, overflow: "auto", p: 1 }}>
                             {inputList.map((item, index) => (
-                                <ListItem key={index} sx={{ my: 0.5, bgcolor: '#f1f3f4', borderRadius: 2 }} secondaryAction={<Tooltip title="Remove Item"><span><IconButton edge="end" aria-label="remove item" onClick={() => handleRemoveItem(index)} disabled={isListFull} size="small"><BiTrash /></IconButton></span></Tooltip>}><ListItemText primary={item} sx={{ pr: 2, wordBreak: 'break-word' }} /></ListItem>
+                                <ListItem key={index} sx={{ my: 0.5, bgcolor: '#f1f3f4', borderRadius: 2 }} secondaryAction={<Tooltip title="Remove Item"><span><IconButton edge="end" aria-label="remove item" onClick={() => handleRemoveItem(index)} size="small"><BiTrash /></IconButton></span></Tooltip>}><ListItemText primary={item} sx={{ pr: 2, wordBreak: 'break-word' }} /></ListItem>
                             ))}
                         </List>
                     </Paper>
                 </Box>
 
-                <Dialog open={showPopup} onClose={() => setShowPopup(false)} PaperProps={{ sx: { borderRadius: 4, border: '2px solid', borderColor: 'secondary.light', background: 'radial-gradient(ellipse at center, #ffffff 0%, #f8f9fa 100%)', animation: 'glow 1.5s infinite alternate', '@keyframes glow': { 'from': { boxShadow: `0 0 10px -5px ${theme.palette.secondary.main}` }, 'to': { boxShadow: `0 0 20px 5px ${theme.palette.secondary.main}` } } } }}>
+                <Dialog open={showPopup} onClose={() => {setShowPopup(false); setShowConfetti(false)}} PaperProps={{ sx: { borderRadius: 4, border: '2px solid', borderColor: 'secondary.light', background: 'radial-gradient(ellipse at center, #ffffff 0%, #f8f9fa 100%)', animation: 'glow 1.5s infinite alternate', '@keyframes glow': { 'from': { boxShadow: `0 0 10px -5px ${theme.palette.secondary.main}` }, 'to': { boxShadow: `0 0 20px 5px ${theme.palette.secondary.main}` } } } }}>
                     <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.8rem', pb: 0, color: 'text.primary' }}>
                         <BiTrophy style={{ color: theme.palette.secondary.main, marginRight: '10px', verticalAlign: 'middle' }} />
                         ITEM SELECTED!
@@ -393,7 +344,7 @@ const FormularioTexto = () => {
                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>{selectedItem}</Typography>
                     </DialogContent>
                     <DialogActions sx={{ p: 2, justifyContent: 'space-around' }}>
-                        <Button variant="outlined" onClick={() => setShowPopup(false)}>Cancel</Button>
+                        <Button variant="outlined" onClick={() => {setShowPopup(false); setShowConfetti(false);}}>Cancel</Button>
                         <Button variant="contained" color="primary" onClick={handleConfirmAction}>{isSetupComplete ? "Assign to Group" : "Remove from List"}</Button>
                     </DialogActions>
                 </Dialog>
@@ -410,7 +361,7 @@ const FormularioTexto = () => {
                 
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        Elysium Spinner v2.8 FINAL
+                        Elysium Spinner v2.7 FINAL
                     </Typography>
                 </Box>
             </Box>

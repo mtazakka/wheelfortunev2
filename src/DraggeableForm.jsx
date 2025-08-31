@@ -182,7 +182,7 @@ const FormularioTexto = () => {
         setCurrentGroupIndex(0);
         setIsSetupComplete(true);
         setSetupDialogOpen(false);
-        if (isCheatModeUnlocked && teams === 14 && numGroups === 4) {
+        if ((headerTitle === "Tournament CEBC 2025 "|| headerTitle === "Tournament CEBC Cup 2025" || isCheatModeUnlocked) && teams === 14 && numGroups === 4) {
             setIsTournamentMode(true);
             const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
             const separatedTeams = [" ⁠K'jak Roar ", "Soetta Jawara", "⁠Headquarters"];

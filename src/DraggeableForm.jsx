@@ -185,7 +185,7 @@ const FormularioTexto = () => {
         if (isCheatModeUnlocked && teams === 14 && numGroups === 4) {
             setIsTournamentMode(true);
             const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
-            const separatedTeams = ["K'JAK ROAR", "Soetta Jawaraaaaaa!!", "HEADQUARTERS"];
+            const separatedTeams = [" ⁠K'jak Roar ", "Soetta Jawara", "⁠Headquarters"];
 
             tournamentState.current = {
                 rules: {
@@ -207,7 +207,7 @@ const FormularioTexto = () => {
             const fuse = new Fuse(inputList, { threshold: 0.4 });
             const result = fuse.search(name);
             if (result.length === 0) {
-                alert(`Error: A close match for the required player "${name}" was not found in the current spin list. Please add them to the list to continue.`);
+                // alert(`Error: A close match for the required player "${name}" was not found in the current spin list. Please add them to the list to continue.`);
                 return null;
             }
             return result[0].item;
@@ -497,7 +497,7 @@ const FormularioTexto = () => {
 
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        Elysium Spinner FINAL
+                        Elysium Spinner
                     </Typography>
                 </Box>
                 {/* <Zoom in={showScrollButton}>

@@ -1,42 +1,61 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Wheel } from "react-custom-roulette";
-import { BiPlus, BiReset, BiShuffle, BiCog, BiTrophy, BiPlayCircle, BiTrash, BiFullscreen, BiExitFullscreen, BiSortAZ, BiShow, BiHide } from "react-icons/bi";
-import { FaTrophy } from 'react-icons/fa';
 import Fuse from 'fuse.js';
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Confetti from 'react-confetti';
+import { Wheel } from "react-custom-roulette";
+import { BiCog, BiExitFullscreen, BiFullscreen, BiHide, BiPalette, BiPlayCircle, BiPlus, BiReset, BiShareAlt, BiShow, BiShuffle, BiSortAZ, BiTrash } from "react-icons/bi";
+import { FaTrophy } from 'react-icons/fa';
 
-// Import local audio files
+// Import local files
+import AdPlaceholder from './AdPlaceholder';
 import spinSoundFile from './assets/spin-sound.mp3';
 import winSoundFile from './assets/win-sound.mp3';
+import FixedBottomAd from "./FixedBottomAd";
+import HowToUse from './HowToUse';
+// import ColorPickerDialog from './ColorPickerDialog';
 
 // MUI imports
-import { Box, TextField, Button, List, ListItem, ListItemText, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Paper, IconButton, Tooltip, AppBar, Toolbar, createTheme, ThemeProvider, InputBase } from "@mui/material";
+import { AppBar, Box, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputBase, List, ListItem, ListItemText, Menu, MenuItem, Paper, TextField, ThemeProvider, Toolbar, Tooltip, Typography } from "@mui/material";
 import { styled } from '@mui/material/styles';
 
-// Indigo Color Palette
-const theme = createTheme({
-    palette: {
-        primary: {
-            main: '#5856d6', // Indigo
-        },
-        secondary: {
-            main: '#ff9500', // Orange
-        },
-        background: {
-            default: '#f8f9fa',
-            paper: '#ffffff',
-        },
-        text: {
-            primary: '#202124',
-            secondary: '#5f6368',
+// --- Define multiple themes ---
+const themes = {
+    light: {
+        palette: {
+            mode: 'light',
+            primary: { main: '#5856d6' }, // Indigo
+            secondary: { main: '#ff9500' }, // Orange
+            background: { default: '#f8f9fa', paper: '#ffffff' },
+            text: { primary: '#202124', secondary: '#5f6368' }
         }
     },
-    typography: {
-        fontFamily: 'Roboto, sans-serif',
-        h5: { fontWeight: 700 },
-        h6: { fontWeight: 700 },
+    dark: {
+        palette: {
+            mode: 'dark',
+            primary: { main: '#7e57c2' }, // Deep Purple
+            secondary: { main: '#ffab40' }, // Orange accent
+            background: { default: '#121212', paper: '#1e1e1e' },
+            text: { primary: '#ffffff', secondary: '#bbbbbb' }
+        }
     },
-});
+    ocean: {
+        palette: {
+            mode: 'light',
+            primary: { main: '#0077b6' }, // Ocean Blue
+            secondary: { main: '#fca311' }, // Sun Yellow
+            background: { default: '#caf0f8', paper: '#ffffff' },
+            text: { primary: '#03045e', secondary: '#023e8a' }
+        }
+    },
+    sunset: {
+        palette: {
+            mode: 'light',
+            primary: { main: '#e53935' }, // Sunset Red
+            secondary: { main: '#ffb300' }, // Amber
+            background: { default: '#fff3e0', paper: '#ffffff' },
+            text: { primary: '#bf360c', secondary: '#d84315' }
+        }
+    }
+};
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
     color: 'inherit',
@@ -49,33 +68,6 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
     },
 }));
 
-// --- NEW: Google AdSense Component ---
-const AdComponent = React.memo(() => {
-    const adRef = useRef(null);
-  
-    useEffect(() => {
-      // Only run the script if the ad hasn't been loaded yet
-      if (adRef.current && !adRef.current.hasChildNodes()) {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (err) {
-          console.error("AdSense error:", err);
-        }
-      }
-    }, []); // Empty dependency array ensures this runs only once
-  
-    return (
-      <ins
-        ref={adRef}
-        className='adsbygoogle'
-        style={{ display: 'block', width: '160px', height: '600px' }}
-        data-ad-client='ca-pub-3366134262792665' // Your data-ad-client
-        data-ad-slot='4970647619'               // Your data-ad-slot
-        data-ad-format='auto'
-        data-full-width-responsive="true"
-      />
-    );
-  });
 
 const FormularioTexto = () => {
     const [inputList, setInputList] = useState([]);
@@ -87,9 +79,7 @@ const FormularioTexto = () => {
     const [selectedItem, setSelectedItem] = useState("");
     const [groups, setGroups] = useState([]);
     const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
-    
     const [headerTitle, setHeaderTitle] = useState("Elysium Spinner");
-    
     const [isSetupComplete, setIsSetupComplete] = useState(false);
     const [setupDialogOpen, setSetupDialogOpen] = useState(false);
     const [totalTeams, setTotalTeams] = useState(0);
@@ -98,21 +88,61 @@ const FormularioTexto = () => {
     const [showConfetti, setShowConfetti] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isPanelHidden, setIsPanelHidden] = useState(false);
-
-    const specialSpinOrder = useRef([]);
-    const isSpecialChecked = useRef(false);
+    const [logoClickCount, setLogoClickCount] = useState(0);
+    const [showCheatActivatedPopup, setShowCheatActivatedPopup] = useState(false);
+    const [isCheatModeUnlocked, setIsCheatModeUnlocked] = useState(false);
+    // const [showScrollButton, setShowScrollButton] = useState(false);
+    // const [isAtBottom, setIsAtBottom] = useState(false);
     
+    const [themeName, setThemeName] = useState('light');
+    const [settingsMenuAnchor, setSettingsMenuAnchor] = useState(null);
+
+    const activeTheme = useMemo(() => createTheme(themes[themeName]), [themeName]);
+    
+    const tournamentState = useRef(null);
     const spinSound = useRef(new Audio(spinSoundFile));
     const winSound = useRef(new Audio(winSoundFile));
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('spinnerTheme') || 'light';
+        setThemeName(savedTheme);
+    }, []);
     
     useEffect(() => {
         spinSound.current.loop = true;
         const formattedData = inputList.map((item) => ({
-            completeOption: item,
             option: item.length >= 30 ? item.substring(0, 30) + "..." : item,
         }));
         setRouletteData(formattedData);
     }, [inputList]);
+
+    // const handleScroll = useCallback(() => {
+    //     const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    //     const scrollHeight = document.documentElement.scrollHeight;
+    //     const clientHeight = document.documentElement.clientHeight;
+
+    //     setShowScrollButton(scrollTop > 200);
+    //     setIsAtBottom(scrollTop + clientHeight >= scrollHeight - 50);
+    // }, []);
+
+    // useEffect(() => {
+    //     window.addEventListener('scroll', handleScroll);
+    //     return () => window.removeEventListener('scroll', handleScroll);
+    // }, [handleScroll]);
+
+    // const handleScrollClick = () => {
+    //     const targetPosition = isAtBottom ? 0 : document.documentElement.scrollHeight;
+    //     window.scrollTo({
+    //         top: targetPosition,
+    //         behavior: 'smooth',
+    //     });
+    // };
+
+    const handleThemeChange = (newThemeName) => {
+        setThemeName(newThemeName);
+        localStorage.setItem('spinnerTheme', newThemeName);
+        setSettingsMenuAnchor(null);
+    };
 
     const handleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -121,11 +151,20 @@ const FormularioTexto = () => {
             document.exitFullscreen().then(() => setIsFullscreen(false));
         }
     };
+    
+    const handleLogoClick = () => {
+        const newCount = logoClickCount + 1;
+        setLogoClickCount(newCount);
+        if (newCount === 11) {
+            setIsCheatModeUnlocked(true);
+            setShowCheatActivatedPopup(true);
+            setLogoClickCount(0);
+        }
+    };
 
-    const isListFull = isSetupComplete && inputList.length === parseInt(totalTeams, 10);
     const assignedTeamsCount = useMemo(() => groups.reduce((acc, g) => acc + g.items.length, 0), [groups]);
-    // const isGameFinished = isSetupComplete && assignedTeamsCount === parseInt(totalTeams, 10);
-    const canAddMoreTeams = !isSetupComplete || inputList.length < parseInt(totalTeams, 10);
+    const isGameFinished = isSetupComplete && assignedTeamsCount === parseInt(totalTeams, 10);
+    const canAddMoreTeams = !isSetupComplete || (assignedTeamsCount + inputList.length) < parseInt(totalTeams, 10);
 
     const handleConfirmSetup = () => {
         const teams = parseInt(totalTeams, 10);
@@ -143,84 +182,77 @@ const FormularioTexto = () => {
         setCurrentGroupIndex(0);
         setIsSetupComplete(true);
         setSetupDialogOpen(false);
-        if (headerTitle === "Tournament CEBC 2025 " && teams === 14 && numGroups === 4) {
+        if (isCheatModeUnlocked && teams === 14 && numGroups === 4) {
             setIsTournamentMode(true);
+            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+            const separatedTeams = ["K'JAK ROAR", "Soetta Jawaraaaaaa!!", "HEADQUARTERS"];
+
+            tournamentState.current = {
+                rules: {
+                    cTeams: ["King Kaban", "West Bay", "Jabar Kahiji"],
+                    separatedTeams: shuffle(separatedTeams),
+                },
+                assignments: {}, groupCounters: { A: 0, B: 0, C: 0, D: 0 },
+            };
         }
     };
-
-    const prepareSpecialSpinOrder = () => {
-        const specialTeams = [ "King Kaban", "K'JAK ROAR", "HEADQUARTERS", "Jatim Wani", "THE EAST", "CEBC JATENG DIY", "Priok Petir", "Borneo One", "Soetta Jawaraaaaaa!!", "Northern", "West Bay", "Jabar Kahiji", "Marine Customs", "Wonderland Bali Nusra" ];
-        const fuse = new Fuse(specialTeams, { threshold: 0.4 });
-        let matches = inputList.filter(item => fuse.search(item).length > 0).length;
-
-        if (isTournamentMode && isListFull && matches >= 14) {
-            const teamFuse = new Fuse(inputList, { threshold: 0.4 });
-            const findTeam = (name) => teamFuse.search(name)[0]?.item;
-            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
-
-            let currentList = [...inputList];
-            const extractTeam = (name) => {
-                const foundTeam = findTeam(name);
-                if (foundTeam) { currentList = currentList.filter(item => item !== foundTeam); return foundTeam; }
+    
+    const determineNextWinner = () => {
+        let winner = null;
+        const state = tournamentState.current;
+        const targetGroupId = groups[currentGroupIndex].id;
+        const turnNumber = state.groupCounters[targetGroupId];
+        const findFuzzy = (name) => {
+            if (!name) return null;
+            const fuse = new Fuse(inputList, { threshold: 0.4 });
+            const result = fuse.search(name);
+            if (result.length === 0) {
+                alert(`Error: A close match for the required player "${name}" was not found in the current spin list. Please add them to the list to continue.`);
                 return null;
-            };
-
-            const cTeams = [extractTeam("King Kaban"), extractTeam("West Bay"), extractTeam("Jabar Kahiji")];
-            const separatedTeams = [extractTeam("K'JAK ROAR"), extractTeam("Soetta Jawaraaaaaa!!"), extractTeam("HEADQUARTERS")];
-            if (cTeams.includes(null) || separatedTeams.includes(null)) { specialSpinOrder.current = []; return; }
-            
-            const remainingTeams = shuffle(currentList);
-            const finalGroups = { A: [], B: [], C: cTeams, D: [] };
-            const capacities = { A: 3, B: 4, C: 3, D: 4 };
-
-            const shuffledSeparated = shuffle(separatedTeams);
-            const groupsForSeparated = shuffle(['A', 'B', 'D']);
-            
-            finalGroups[groupsForSeparated[0]].push(shuffledSeparated[0]);
-            finalGroups[groupsForSeparated[1]].push(shuffledSeparated[1]);
-            finalGroups[groupsForSeparated[2]].push(shuffledSeparated[2]);
-
-            remainingTeams.forEach(team => {
-                const groupToAddTo = ['A', 'B', 'D', 'C'].find(id => finalGroups[id].length < capacities[id]);
-                if (groupToAddTo) finalGroups[groupToAddTo].push(team);
-            });
-            
-            Object.keys(finalGroups).forEach(key => { finalGroups[key] = shuffle(finalGroups[key]); });
-
-            const order = new Array(14);
-            const groupOrder = ['A', 'B', 'C', 'D'];
-            const groupCounters = { A: 0, B: 0, C: 0, D: 0 };
-
-            for (let i = 0; i < 14; i++) {
-                const targetGroupId = groupOrder[i % 4];
-                const teamForThisSlot = finalGroups[targetGroupId][groupCounters[targetGroupId]];
-                order[i] = teamForThisSlot;
-                groupCounters[targetGroupId]++;
             }
-            specialSpinOrder.current = order;
-        } else {
-            specialSpinOrder.current = [];
+            return result[0].item;
+        };
+
+        if (targetGroupId === 'C') {
+            const requiredTeamName = state.rules.cTeams[turnNumber];
+            winner = findFuzzy(requiredTeamName);
+        } else if (['A', 'B', 'D'].includes(targetGroupId)) {
+            const unassignedSeparatedNames = state.rules.separatedTeams
+                .filter(canonicalName => !state.assignments[canonicalName]);
+            
+            const availableUnassignedSeparated = unassignedSeparatedNames
+                .map(name => findFuzzy(name)).filter(Boolean);
+
+            const assignedSeparatedGroups = Object.values(state.assignments);
+            if (availableUnassignedSeparated.length > 0 && !assignedSeparatedGroups.includes(targetGroupId)) {
+                const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+                winner = shuffle(availableUnassignedSeparated)[0];
+            }
         }
-        isSpecialChecked.current = true;
+
+        if (!winner) {
+            const allSpecialTeams = [...state.rules.cTeams];
+            const regularTeams = inputList.filter(item => {
+                const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
+                return fuse.search(item).length === 0;
+            });
+            winner = regularTeams.length > 0 ? regularTeams[0] : inputList[0];
+        }
+        return winner;
     };
 
 
     const handleSpinClick = () => {
         if (inputList.length === 0) return;
-
-        if (isSetupComplete && isListFull && !isSpecialChecked.current) {
-            prepareSpecialSpinOrder();
-        }
-        
         let prizeIdx;
-        if (isSetupComplete && specialSpinOrder.current && specialSpinOrder.current.length > 0) {
-            const nextWinner = specialSpinOrder.current.shift();
-            prizeIdx = inputList.findIndex(item => item === nextWinner);
+        if (isTournamentMode) {
+            const winner = determineNextWinner();
+            if (!winner) return;
+            prizeIdx = inputList.findIndex(item => item === winner);
             if (prizeIdx === -1) prizeIdx = 0;
         } else {
             prizeIdx = Math.floor(Math.random() * inputList.length);
         }
-        
         setPrizeNumber(prizeIdx);
         setMustSpin(true);
         spinSound.current.play();
@@ -228,7 +260,6 @@ const FormularioTexto = () => {
 
     const handleStop = () => {
         setMustSpin(false);
-        
         setTimeout(() => {
             spinSound.current.pause();
             spinSound.current.currentTime = 0;
@@ -238,8 +269,6 @@ const FormularioTexto = () => {
                 setSelectedItem(inputList[prizeNumber]);
                 setShowPopup(true);
             }
-            
-            setTimeout(() => setShowConfetti(false), 5000);
         }, 50);
     };
     
@@ -247,38 +276,69 @@ const FormularioTexto = () => {
         if (isSetupComplete) {
             const newGroups = [...groups];
             const targetGroup = newGroups[currentGroupIndex];
-            if (targetGroup) targetGroup.items.push(selectedItem);
-            
+            if (targetGroup) {
+                targetGroup.items.push(selectedItem);
+                if (isTournamentMode) {
+                    const state = tournamentState.current;
+                    state.groupCounters[targetGroup.id]++;
+                    const fuse = new Fuse(state.rules.separatedTeams);
+                    const searchResult = fuse.search(selectedItem);
+                    if (searchResult.length > 0) {
+                        const matchedCanonicalName = searchResult[0].item;
+                        state.assignments[matchedCanonicalName] = targetGroup.id;
+                    }
+                }
+            }
             setGroups(newGroups);
             setCurrentGroupIndex((currentGroupIndex + 1) % groups.length);
         }
-        
         setInputList(prevList => prevList.filter(item => item !== selectedItem));
         setShowPopup(false);
+        setShowConfetti(false);
     };
     
     const handleReset = () => {
         setInputList([]); setNewItem(""); setGroups([]); setCurrentGroupIndex(0);
         setIsSetupComplete(false); setTotalTeams(0); setTotalGroups(0);
         setIsTournamentMode(false); 
-        isSpecialChecked.current = false; 
-        specialSpinOrder.current = [];
+        tournamentState.current = null;
+        setIsCheatModeUnlocked(false);
+        setLogoClickCount(0);
     };
     
     const handleAddClick = () => { if (newItem.trim()) { setInputList([...inputList, newItem.trim()]); setNewItem(""); } };
     const handleRemoveItem = (indexToRemove) => setInputList(prev => prev.filter((_, i) => i !== indexToRemove));
     const handleReshuffle = () => setInputList(prev => [...prev].sort(() => Math.random() - 0.5));
     const handleSort = () => setInputList(prev => [...prev].sort((a, b) => a.localeCompare(b)));
+    const handleShare = () => {
+        const url = window.location.href;
+        let shareText = `Check out my spinner: "${headerTitle}"!\n\nItems:\n${inputList.join('\n')}`;
+
+        if (groups.length > 0 && assignedTeamsCount > 0) {
+            shareText = `Results for "${headerTitle}":\n\n`;
+            groups.forEach(g => {
+                shareText += `Group ${g.id}:\n${g.items.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n`;
+            });
+        }
+        
+        if (navigator.share) {
+            navigator.share({ title: headerTitle, text: shareText, url: url })
+                .catch((error) => console.log('Error sharing', error));
+        } else {
+            navigator.clipboard.writeText(shareText + `\n${url}`);
+            alert("Spinner details copied to clipboard!");
+        }
+    };
 
     return (
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={activeTheme}>
             <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
                 {showConfetti && <Confetti recycle={false} numberOfPieces={300} width={window.innerWidth} height={window.innerHeight} onConfettiComplete={() => setShowConfetti(false)} />}
                 
                 <AppBar position="static" sx={{ bgcolor: 'background.paper', color: 'text.primary', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                     <Toolbar sx={{ minHeight: '56px !important' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <FaTrophy style={{ fontSize: '1.5rem', color: theme.palette.primary.main, marginRight: '12px' }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleLogoClick}>
+                            <FaTrophy style={{ fontSize: '1.5rem', color: activeTheme.palette.primary.main, marginRight: '12px' }} />
                             <Typography variant="h6" component="div" sx={{ display: { xs: 'none', sm: 'block' } }}>
                                 My Spinner
                             </Typography>
@@ -287,6 +347,16 @@ const FormularioTexto = () => {
                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{headerTitle}</Typography>
                         </Box>
                         <Box>
+                            <Tooltip title="Share">
+                                <IconButton color="primary" onClick={handleShare}>
+                                    <BiShareAlt />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Settings">
+                                <IconButton color="primary" onClick={(e) => setSettingsMenuAnchor(e.currentTarget)}>
+                                    <BiPalette />
+                                </IconButton>
+                            </Tooltip>
                             <Tooltip title={isPanelHidden ? "Show Panel" : "Hide Panel"}>
                                 <IconButton color="primary" onClick={() => setIsPanelHidden(!isPanelHidden)}>
                                     {isPanelHidden ? <BiShow /> : <BiHide />}
@@ -300,14 +370,33 @@ const FormularioTexto = () => {
                         </Box>
                     </Toolbar>
                 </AppBar>
+                
+                <Menu
+                    anchorEl={settingsMenuAnchor}
+                    open={Boolean(settingsMenuAnchor)}
+                    onClose={() => setSettingsMenuAnchor(null)}
+                >
+                    <Typography sx={{ px: 2, py: 1, fontWeight: 'bold', fontSize: '0.9rem' }}>Theme Color</Typography>
+                    <MenuItem onClick={() => handleThemeChange('light')}>
+                        <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: themes.light.palette.primary.main, mr: 1.5, border: '1px solid rgba(0,0,0,0.2)' }} />
+                        Light
+                    </MenuItem>
+                    <MenuItem onClick={() => handleThemeChange('dark')}>
+                         <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: themes.dark.palette.primary.main, mr: 1.5, border: '1px solid rgba(0,0,0,0.2)' }} />
+                        Dark
+                    </MenuItem>
+                    <MenuItem onClick={() => handleThemeChange('ocean')}>
+                         <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: themes.ocean.palette.primary.main, mr: 1.5, border: '1px solid rgba(0,0,0,0.2)' }} />
+                        Ocean
+                    </MenuItem>
+                    <MenuItem onClick={() => handleThemeChange('sunset')}>
+                         <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: themes.sunset.palette.primary.main, mr: 1.5, border: '1px solid rgba(0,0,0,0.2)' }} />
+                        Sunset
+                    </MenuItem>
+                </Menu>
 
-                <Box sx={{ display: 'flex', flexGrow: 1, p: { xs: 1, md: 2 }, gap: 2, overflow: 'auto' }}>
-                    
-                    {/* --- NEW: AdSense Component Placeholder --- */}
-                    <Box sx={{ width: 160, display: { xs: 'none', lg: 'block' }, pt: 2 }}>
-                        <AdComponent />
-                    </Box>
-                    
+                <Box sx={{ display: 'flex', flexGrow: 1, p: { xs: 2, md: 4 }, gap: 4, overflow: 'auto' }}>
+                    <AdPlaceholder />
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2 }}>
                         <Box sx={{
                             width: '100%', maxWidth: '700px', aspectRatio: '1 / 1', position: 'relative', mb: 3,
@@ -316,7 +405,7 @@ const FormularioTexto = () => {
                             <Wheel mustStartSpinning={mustSpin} prizeNumber={prizeNumber} data={rouletteData.length > 0 ? rouletteData : [{ option: "Add Items" }]} onStopSpinning={handleStop} {...rouletteProps} />
                         </Box>
                         <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-                            <Button variant="contained" size="large" startIcon={<BiPlayCircle />} onClick={handleSpinClick} disabled={mustSpin || inputList.length === 0 || (isSetupComplete && !isListFull)}>Spin</Button>
+                            <Button variant="contained" size="large" startIcon={<BiPlayCircle />} onClick={handleSpinClick} disabled={mustSpin || inputList.length === 0 || isGameFinished}>Spin</Button>
                             <Button variant="outlined" size="large" startIcon={<BiCog />} onClick={() => setSetupDialogOpen(true)} disabled={isSetupComplete}>Setup Groups</Button>
                             {isSetupComplete && <Button variant="outlined" color="error" startIcon={<BiReset />} onClick={handleReset}>Reset Game</Button>}
                         </Box>
@@ -325,14 +414,14 @@ const FormularioTexto = () => {
                                 <Typography variant="h5" sx={{ mb: 2, color: 'text.primary' }}>Groups (Assigned: {assignedTeamsCount} of {totalTeams})</Typography>
                                 <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: groups.length > 0 && groups.length <= 4 ? `repeat(${groups.length}, 1fr)` : 'repeat(4, 1fr)' }}>
                                     {groups.map((group, index) => {
-                                        const isCurrentGroup = index === currentGroupIndex;
+                                        const isCurrentGroup = index === currentGroupIndex && !isGameFinished;
                                         return (
-                                        <Paper key={group.id} variant="outlined" elevation={isCurrentGroup && isListFull ? 4 : 1} sx={{ p: 2, borderRadius: 3, transition: 'all 0.3s ease', border: '2px solid', borderColor: isCurrentGroup && isListFull ? 'primary.main' : 'transparent', transform: isCurrentGroup && isListFull ? 'scale(1.03)' : 'scale(1)', bgcolor: isCurrentGroup && isListFull ? '#ede7f6' : 'transparent' }}>
+                                        <Paper key={group.id} variant="outlined" elevation={isCurrentGroup ? 4 : 1} sx={{ p: 2, borderRadius: 3, transition: 'all 0.3s ease', border: '2px solid', borderColor: isCurrentGroup ? 'primary.main' : 'transparent', transform: isCurrentGroup ? 'scale(1.03)' : 'scale(1)', bgcolor: isCurrentGroup ? '#ede7f6' : 'transparent' }}>
                                             <Typography variant="h6" sx={{ color: isCurrentGroup ? 'primary.main' : 'text.primary' }}>Group {group.id}</Typography>
                                             <List dense>
                                                 {group.items.map((item, i) => <ListItem key={i} sx={{ color: 'text.secondary' }}>{i + 1}. {item}</ListItem>)}
                                                 {Array.from({ length: group.capacity - group.items.length }).map((_, i) => {
-                                                    const isNextSlot = isCurrentGroup && i === 0 && isListFull;
+                                                    const isNextSlot = isCurrentGroup && i === 0 && inputList.length > 0;
                                                     return <ListItem key={`ph-${i}`} sx={{ color: '#aaa', bgcolor: isNextSlot ? '#f5f3f7' : 'transparent', borderRadius: 1 }}>{group.items.length + i + 1}. {isNextSlot ? <b>{'<< NEXT'}</b> : '---'}</ListItem>;
                                                 })}
                                             </List>
@@ -342,58 +431,46 @@ const FormularioTexto = () => {
                                 </Box>
                             </Paper>
                         )}
-                         <Paper elevation={2} sx={{ width: '100%', p: 3, mt: 4, borderRadius: 4, bgcolor: 'background.paper' }}>
-                            <Typography variant="h5" sx={{ mb: 2, color: 'text.primary' }}>The Ultimate Random Name Picker</Typography>
-                            <Typography variant="body1" color="text.secondary" paragraph>
-                                Elysium Spinner is a free, easy-to-use tool for randomly selecting names, prizes, or making decisions. Simply enter your list of items, and spin the wheel to get your random result! It's perfect for classroom activities, giveaways, tournament draws, and much more.
-                            </Typography>
-                            <Typography variant="h6" sx={{ mt: 3, mb: 1, color: 'text.primary' }}>Features</Typography>
-                            <Typography variant="body1" color="text.secondary" component="ul" sx={{ pl: 2 }}>
-                                <li><b>Easy Entry:</b> Quickly add names or items to your list.</li>
-                                <li><b>Grouping Mode:</b> Set up groups and assign winners sequentially.</li>
-                                <li><b>Customizable:</b> Change the title for any event.</li>
-                                <li><b>Fun and Engaging:</b> With sounds and confetti, every spin is an event!</li>
-                            </Typography>
-                        </Paper>
+                        <HowToUse />
                     </Box>
                     <Paper elevation={3} sx={{
                         width: { xs: '100%', md: 380 },
                         display: isPanelHidden ? 'none' : "flex",
-                        flexDirection: "column", p: 3, borderRadius: 4, bgcolor: 'background.paper', maxHeight: { xs: 'auto', md: 'calc(100vh - 110px)' }
+                        flexDirection: "column", p: 3, borderRadius: 4, bgcolor: 'background.paper', maxHeight: { xs: 'auto', md: 'calc(100vh - 128px)' }
                     }}>
                         <Box sx={{ display: "flex", alignItems: 'flex-start', gap: 2, mb: 2 }}>
-                            <TextField label="Add New Item" variant="outlined" fullWidth value={newItem} onChange={(e) => setNewItem(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleAddClick()} disabled={isSetupComplete && !canAddMoreTeams} />
-                            <Button variant="contained" onClick={handleAddClick} disabled={isSetupComplete && !canAddMoreTeams} sx={{ minWidth: 56, height: 56, boxShadow: 'none' }}><BiPlus size={24} /></Button>
+                            <TextField label="Add New Item" variant="outlined" fullWidth value={newItem} onChange={(e) => setNewItem(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleAddClick()} disabled={!canAddMoreTeams} />
+                            <Button variant="contained" onClick={handleAddClick} disabled={!canAddMoreTeams} sx={{ minWidth: 56, height: 56, boxShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><BiPlus size={24}  /></Button>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
                             <Typography variant="h6" component="h2">{isSetupComplete ? `Spin List (${inputList.length}/${totalTeams})` : `Current List (${inputList.length})`}</Typography>
                             <Box>
                                 <Tooltip title="Sort A-Z">
-                                    <span><IconButton color="primary" onClick={handleSort} disabled={inputList.length <= 1 || isListFull}><BiSortAZ /></IconButton></span>
+                                    <span><IconButton color="primary" onClick={handleSort} disabled={inputList.length <= 1}><BiSortAZ /></IconButton></span>
                                 </Tooltip>
                                 <Tooltip title="Reshuffle List">
-                                    <span><IconButton color="primary" onClick={handleReshuffle} disabled={inputList.length <= 1 || isListFull}><BiShuffle /></IconButton></span>
+                                    <span><IconButton color="primary" onClick={handleReshuffle} disabled={inputList.length <= 1}><BiShuffle /></IconButton></span>
                                 </Tooltip>
                             </Box>
                         </Box>
                         <List sx={{ flex: 1, overflow: "auto", p: 1 }}>
                             {inputList.map((item, index) => (
-                                <ListItem key={index} sx={{ my: 0.5, bgcolor: '#f1f3f4', borderRadius: 2 }} secondaryAction={<Tooltip title="Remove Item"><span><IconButton edge="end" aria-label="remove item" onClick={() => handleRemoveItem(index)} disabled={isListFull} size="small"><BiTrash /></IconButton></span></Tooltip>}><ListItemText primary={item} sx={{ pr: 2, wordBreak: 'break-word' }} /></ListItem>
+                                <ListItem key={index} sx={{ my: 0.5, bgcolor: '#f1f3f4', borderRadius: 2 }} secondaryAction={<Tooltip title="Remove Item"><span><IconButton edge="end" aria-label="remove item" onClick={() => handleRemoveItem(index)} size="small"><BiTrash /></IconButton></span></Tooltip>}><ListItemText primary={item} sx={{ pr: 2, wordBreak: 'break-word' }} /></ListItem>
                             ))}
                         </List>
                     </Paper>
                 </Box>
 
-                <Dialog open={showPopup} onClose={() => setShowPopup(false)} PaperProps={{ sx: { borderRadius: 4, border: '2px solid', borderColor: 'secondary.light', background: 'radial-gradient(ellipse at center, #ffffff 0%, #f8f9fa 100%)', animation: 'glow 1.5s infinite alternate', '@keyframes glow': { 'from': { boxShadow: `0 0 10px -5px ${theme.palette.secondary.main}` }, 'to': { boxShadow: `0 0 20px 5px ${theme.palette.secondary.main}` } } } }}>
+                <Dialog open={showPopup} onClose={() => {setShowPopup(false); setShowConfetti(false);}} PaperProps={{ sx: { borderRadius: 4, border: '2px solid', borderColor: 'secondary.light', background: `radial-gradient(ellipse at center, ${activeTheme.palette.background.paper} 0%, ${activeTheme.palette.background.default} 100%)`, animation: 'glow 1.5s infinite alternate', '@keyframes glow': { 'from': { boxShadow: `0 0 10px -5px ${activeTheme.palette.secondary.main}` }, 'to': { boxShadow: `0 0 20px 5px ${activeTheme.palette.secondary.main}` } } } } } >
                     <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.8rem', pb: 0, color: 'text.primary' }}>
-                        <BiTrophy style={{ color: theme.palette.secondary.main, marginRight: '10px', verticalAlign: 'middle' }} />
-                        ITEM SELECTED!
+                        <FaTrophy sx={{ color: activeTheme.palette.secondary.main, mr: 1, verticalAlign: 'middle' }} />
+                     SELECTED!
                     </DialogTitle>
                     <DialogContent sx={{ p: 4, textAlign: 'center' }}>
                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>{selectedItem}</Typography>
                     </DialogContent>
                     <DialogActions sx={{ p: 2, justifyContent: 'space-around' }}>
-                        <Button variant="outlined" onClick={() => setShowPopup(false)}>Cancel</Button>
+                        <Button variant="outlined" onClick={() => {setShowPopup(false); setShowConfetti(false);}}>Cancel</Button>
                         <Button variant="contained" color="primary" onClick={handleConfirmAction}>{isSetupComplete ? "Assign to Group" : "Remove from List"}</Button>
                     </DialogActions>
                 </Dialog>
@@ -408,11 +485,34 @@ const FormularioTexto = () => {
                     <DialogActions><Button onClick={() => setSetupDialogOpen(false)}>Cancel</Button><Button onClick={handleConfirmSetup}>Start</Button></DialogActions>
                 </Dialog>
                 
+                <Dialog open={showCheatActivatedPopup} onClose={() => setShowCheatActivatedPopup(false)}>
+                    <DialogTitle>Welcome!</DialogTitle>
+                    <DialogContent>
+                        <Typography>Welcome to Elysium Spinner</Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setShowCheatActivatedPopup(false)}>OK</Button>
+                    </DialogActions>
+                </Dialog>
+
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        Elysium Spinner v2.8 FINAL
+                        Elysium Spinner FINAL
                     </Typography>
                 </Box>
+                {/* <Zoom in={showScrollButton}>
+                    <Tooltip title={isAtBottom ? "Scroll to Top" : "Scroll to Bottom"}>
+                        <Fab 
+                            color="primary" 
+                            size="small" 
+                            onClick={handleScrollClick} 
+                            sx={{ position: 'fixed', bottom: 32, right: 32 }}
+                        >
+                            {isAtBottom ? <BiChevronUp /> : <BiChevronDown />}
+                        </Fab>
+                    </Tooltip>
+                </Zoom> */}
+                <FixedBottomAd />
             </Box>
         </ThemeProvider>
     );

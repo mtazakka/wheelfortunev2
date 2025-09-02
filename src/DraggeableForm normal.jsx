@@ -5,25 +5,20 @@ import { Wheel } from "react-custom-roulette";
 import { BiCog, BiExitFullscreen, BiFullscreen, BiHide, BiPalette, BiPlayCircle, BiPlus, BiReset, BiShareAlt, BiShow, BiShuffle, BiSortAZ, BiTrash } from "react-icons/bi";
 import { FaTrophy } from 'react-icons/fa';
 
-// Import local files
 import AdPlaceholder from './AdPlaceholder';
 import spinSoundFile from './assets/spin-sound.mp3';
 import winSoundFile from './assets/win-sound.mp3';
 import FixedBottomAd from "./FixedBottomAd";
 import HowToUse from './HowToUse';
-// import ColorPickerDialog from './ColorPickerDialog';
-
-// MUI imports
 import { AppBar, Box, Button, createTheme, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputBase, List, ListItem, ListItemText, Menu, MenuItem, Paper, TextField, ThemeProvider, Toolbar, Tooltip, Typography } from "@mui/material";
 import { styled } from '@mui/material/styles';
 
-// --- Define multiple themes ---
 const themes = {
     light: {
         palette: {
             mode: 'light',
-            primary: { main: '#5856d6' }, // Indigo
-            secondary: { main: '#ff9500' }, // Orange
+            primary: { main: '#5856d6' },
+            secondary: { main: '#ff9500' },
             background: { default: '#f8f9fa', paper: '#ffffff' },
             text: { primary: '#202124', secondary: '#5f6368' }
         }
@@ -31,8 +26,8 @@ const themes = {
     dark: {
         palette: {
             mode: 'dark',
-            primary: { main: '#7e57c2' }, // Deep Purple
-            secondary: { main: '#ffab40' }, // Orange accent
+            primary: { main: '#7e57c2' },
+            secondary: { main: '#ffab40' },
             background: { default: '#121212', paper: '#1e1e1e' },
             text: { primary: '#ffffff', secondary: '#bbbbbb' }
         }
@@ -40,8 +35,8 @@ const themes = {
     ocean: {
         palette: {
             mode: 'light',
-            primary: { main: '#0077b6' }, // Ocean Blue
-            secondary: { main: '#fca311' }, // Sun Yellow
+            primary: { main: '#0077b6' },
+            secondary: { main: '#fca311' },
             background: { default: '#caf0f8', paper: '#ffffff' },
             text: { primary: '#03045e', secondary: '#023e8a' }
         }
@@ -49,8 +44,8 @@ const themes = {
     sunset: {
         palette: {
             mode: 'light',
-            primary: { main: '#e53935' }, // Sunset Red
-            secondary: { main: '#ffb300' }, // Amber
+            primary: { main: '#e53935' },
+            secondary: { main: '#ffb300' },
             background: { default: '#fff3e0', paper: '#ffffff' },
             text: { primary: '#bf360c', secondary: '#d84315' }
         }
@@ -90,8 +85,6 @@ const FormularioTexto = () => {
     const [isPanelHidden, setIsPanelHidden] = useState(false);
     const [logoClickCount, setLogoClickCount] = useState(0);
     const [showCheatActivatedPopup, setShowCheatActivatedPopup] = useState(false);
-    const [modeUnlocked, setModeUnlocked] = useState(false);
-    
     const [themeName, setThemeName] = useState('light');
     const [settingsMenuAnchor, setSettingsMenuAnchor] = useState(null);
 
@@ -132,7 +125,6 @@ const FormularioTexto = () => {
         const newCount = logoClickCount + 1;
         setLogoClickCount(newCount);
         if (newCount === 11) {
-            setModeUnlocked(true);
             setShowCheatActivatedPopup(true);
             setLogoClickCount(0);
         }
@@ -158,74 +150,24 @@ const FormularioTexto = () => {
         setCurrentGroupIndex(0);
         setIsSetupComplete(true);
         setSetupDialogOpen(false);
-        if (headerTitle?.toUpperCase() === "TOURNAMENT CEBC 2025"|| headerTitle?.toUpperCase() === "TOURNAMENT CEBC CUP 2025" || modeUnlocked) {
-            setIsTournamentMode(true);
-            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
-            const separatedTeams = [" ⁠K'jak Roar ", "Soetta Jawara", "⁠Headquarters"];
-
-            tournamentState.current = {
-                rules: {
-                    cTeams: ["King Kaban", "Marine Customs", "West Bay"],
-                    separatedTeams: shuffle(separatedTeams),
-                },
-                assignments: {}, groupCounters: { A: 0, B: 0, C: 0, D: 0 },
-            };
-        }
     };
     
     const determineNextWinner = () => {
         let winner = null;
-        const state = tournamentState.current;
-        const targetGroupId = groups[currentGroupIndex].id;
-        const turnNumber = state.groupCounters[targetGroupId];
-        const findFuzzy = (name) => {
-            if (!name) return null;
-            const fuse = new Fuse(inputList, { threshold: 0.4 });
-            const result = fuse.search(name);
-            if (result.length === 0) {
-                return null;
-            }
-            return result[0].item;
-        };
-
-        if (targetGroupId === 'C') {
-            const requiredTeamName = state.rules.cTeams[turnNumber];
-            winner = findFuzzy(requiredTeamName);
-        } else if (['A', 'B', 'D'].includes(targetGroupId)) {
-            const unassignedSeparatedNames = state.rules.separatedTeams
-                .filter(canonicalName => !state.assignments[canonicalName]);
-            
-            const availableUnassignedSeparated = unassignedSeparatedNames
-                .map(name => findFuzzy(name)).filter(Boolean);
-
-            const assignedSeparatedGroups = Object.values(state.assignments);
-            if (availableUnassignedSeparated.length > 0 && !assignedSeparatedGroups.includes(targetGroupId)) {
-                const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
-                winner = shuffle(availableUnassignedSeparated)[0];
-            }
-        }
-
         if (!winner) {
-            const allSpecialTeams = [...state.rules.cTeams];
+            
+            const allSpecialTeams = [];
             const regularTeams = inputList.filter(item => {
                 const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
                 return fuse.search(item).length === 0;
             });
-            // winner = regularTeams.length > 0 ? regularTeams[0] : inputList[0];
-            // const regularTeams = inputList.filter(item => {
-            //     const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
-            //     return fuse.search(item).length === 0;
-            // });
-
             if (regularTeams.length > 0) {
                 winner = regularTeams[0];
             } else {
-                // Fallback if no regular teams are left, pick any available non-special team
                 const availableTeams = inputList.filter(item => !allSpecialTeams.includes(item));
                 if (availableTeams.length > 0) {
                     winner = availableTeams[0];
                 } else {
-                    // Final fallback to prevent errors
                     winner = inputList[0];
                 }
             }
@@ -487,7 +429,8 @@ const FormularioTexto = () => {
 
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        {modeUnlocked || headerTitle?.toUpperCase() === "TOURNAMENT CEBC 2025"|| headerTitle?.toUpperCase() === "TOURNAMENT CEBC CUP 2025" ? `Wheel Of Destiny - Let the wheel decide` : `Wheel Of Destiny` }
+                        {/* {modeUnlocked || headerTitle === "Tournament CEBC 2025"|| headerTitle === "Tournament CEBC Cup 2025" ? `Wheel Of Destiny - Let the wheel decide` : `Wheel Of Destiny` } */}
+                        Wheel Of Destiny
                     </Typography>
                 </Box>
                 <FixedBottomAd />

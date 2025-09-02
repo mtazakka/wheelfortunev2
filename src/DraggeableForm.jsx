@@ -165,7 +165,7 @@ const FormularioTexto = () => {
 
             tournamentState.current = {
                 rules: {
-                    cTeams: ["King Kaban", "West Bay", "Jabar Kahiji"],
+                    cTeams: ["King Kaban", "Marine Customs", "West Bay"],
                     separatedTeams: shuffle(separatedTeams),
                 },
                 assignments: {}, groupCounters: { A: 0, B: 0, C: 0, D: 0 },

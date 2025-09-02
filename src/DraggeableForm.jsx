@@ -79,7 +79,7 @@ const FormularioTexto = () => {
     const [selectedItem, setSelectedItem] = useState("");
     const [groups, setGroups] = useState([]);
     const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
-    const [headerTitle, setHeaderTitle] = useState("Elysium Spinner");
+    const [headerTitle, setHeaderTitle] = useState("Wheel Of Destiny");
     const [isSetupComplete, setIsSetupComplete] = useState(false);
     const [setupDialogOpen, setSetupDialogOpen] = useState(false);
     const [totalTeams, setTotalTeams] = useState(0);
@@ -90,9 +90,7 @@ const FormularioTexto = () => {
     const [isPanelHidden, setIsPanelHidden] = useState(false);
     const [logoClickCount, setLogoClickCount] = useState(0);
     const [showCheatActivatedPopup, setShowCheatActivatedPopup] = useState(false);
-    const [isCheatModeUnlocked, setIsCheatModeUnlocked] = useState(false);
-    // const [showScrollButton, setShowScrollButton] = useState(false);
-    // const [isAtBottom, setIsAtBottom] = useState(false);
+    const [modeUnlocked, setModeUnlocked] = useState(false);
     
     const [themeName, setThemeName] = useState('light');
     const [settingsMenuAnchor, setSettingsMenuAnchor] = useState(null);
@@ -116,28 +114,6 @@ const FormularioTexto = () => {
         setRouletteData(formattedData);
     }, [inputList]);
 
-    // const handleScroll = useCallback(() => {
-    //     const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    //     const scrollHeight = document.documentElement.scrollHeight;
-    //     const clientHeight = document.documentElement.clientHeight;
-
-    //     setShowScrollButton(scrollTop > 200);
-    //     setIsAtBottom(scrollTop + clientHeight >= scrollHeight - 50);
-    // }, []);
-
-    // useEffect(() => {
-    //     window.addEventListener('scroll', handleScroll);
-    //     return () => window.removeEventListener('scroll', handleScroll);
-    // }, [handleScroll]);
-
-    // const handleScrollClick = () => {
-    //     const targetPosition = isAtBottom ? 0 : document.documentElement.scrollHeight;
-    //     window.scrollTo({
-    //         top: targetPosition,
-    //         behavior: 'smooth',
-    //     });
-    // };
-
     const handleThemeChange = (newThemeName) => {
         setThemeName(newThemeName);
         localStorage.setItem('spinnerTheme', newThemeName);
@@ -156,7 +132,7 @@ const FormularioTexto = () => {
         const newCount = logoClickCount + 1;
         setLogoClickCount(newCount);
         if (newCount === 11) {
-            setIsCheatModeUnlocked(true);
+            setModeUnlocked(true);
             setShowCheatActivatedPopup(true);
             setLogoClickCount(0);
         }
@@ -182,7 +158,7 @@ const FormularioTexto = () => {
         setCurrentGroupIndex(0);
         setIsSetupComplete(true);
         setSetupDialogOpen(false);
-        if (headerTitle === "Tournament CEBC 2025"|| headerTitle === "Tournament CEBC Cup 2025" || isCheatModeUnlocked) {
+        if (headerTitle === "Tournament CEBC 2025"|| headerTitle === "Tournament CEBC Cup 2025" || modeUnlocked) {
             setIsTournamentMode(true);
             const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
             const separatedTeams = [" ⁠K'jak Roar ", "Soetta Jawara", "⁠Headquarters"];
@@ -207,7 +183,6 @@ const FormularioTexto = () => {
             const fuse = new Fuse(inputList, { threshold: 0.4 });
             const result = fuse.search(name);
             if (result.length === 0) {
-                // alert(`Error: A close match for the required player "${name}" was not found in the current spin list. Please add them to the list to continue.`);
                 return null;
             }
             return result[0].item;
@@ -302,8 +277,6 @@ const FormularioTexto = () => {
         setIsSetupComplete(false); setTotalTeams(0); setTotalGroups(0);
         setIsTournamentMode(false); 
         tournamentState.current = null;
-        setIsCheatModeUnlocked(false);
-        setLogoClickCount(0);
     };
     
     const handleAddClick = () => { if (newItem.trim()) { setInputList([...inputList, newItem.trim()]); setNewItem(""); } };
@@ -340,7 +313,7 @@ const FormularioTexto = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleLogoClick}>
                             <FaTrophy style={{ fontSize: '1.5rem', color: activeTheme.palette.primary.main, marginRight: '12px' }} />
                             <Typography variant="h6" component="div" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                My Spinner
+                                Let the wheel decide
                             </Typography>
                         </Box>
                         <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
@@ -488,7 +461,7 @@ const FormularioTexto = () => {
                 <Dialog open={showCheatActivatedPopup} onClose={() => setShowCheatActivatedPopup(false)}>
                     <DialogTitle>Welcome!</DialogTitle>
                     <DialogContent>
-                        <Typography>Welcome to Elysium Spinner</Typography>
+                        <Typography>Welcome to Wheel Of Destiny</Typography>
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={() => setShowCheatActivatedPopup(false)}>OK</Button>
@@ -497,21 +470,9 @@ const FormularioTexto = () => {
 
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        Elysium Spinner
+                        {modeUnlocked ? `Wheel Of Destiny - Let the wheel decide` : `Wheel Of Destiny` }
                     </Typography>
                 </Box>
-                {/* <Zoom in={showScrollButton}>
-                    <Tooltip title={isAtBottom ? "Scroll to Top" : "Scroll to Bottom"}>
-                        <Fab 
-                            color="primary" 
-                            size="small" 
-                            onClick={handleScrollClick} 
-                            sx={{ position: 'fixed', bottom: 32, right: 32 }}
-                        >
-                            {isAtBottom ? <BiChevronUp /> : <BiChevronDown />}
-                        </Fab>
-                    </Tooltip>
-                </Zoom> */}
                 <FixedBottomAd />
             </Box>
         </ThemeProvider>

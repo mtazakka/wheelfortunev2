@@ -487,7 +487,7 @@ const FormularioTexto = () => {
 
                 <Box component="footer" sx={{ p: 2, mt: 'auto', textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        {modeUnlocked ? `Wheel Of Destiny - Let the wheel decide` : `Wheel Of Destiny` }
+                        {modeUnlocked || headerTitle === "Tournament CEBC 2025"|| headerTitle === "Tournament CEBC Cup 2025" ? `Wheel Of Destiny - Let the wheel decide` : `Wheel Of Destiny` }
                     </Typography>
                 </Box>
                 <FixedBottomAd />

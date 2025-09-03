@@ -161,14 +161,15 @@ const FormularioTexto = () => {
                 const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
                 return fuse.search(item).length === 0;
             });
+            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
             if (regularTeams.length > 0) {
-                winner = regularTeams[0];
+                winner = shuffle(regularTeams)[0];
             } else {
                 const availableTeams = inputList.filter(item => !allSpecialTeams.includes(item));
                 if (availableTeams.length > 0) {
-                    winner = availableTeams[0];
+                    winner = shuffle(availableTeams)[0];
                 } else {
-                    winner = inputList[0];
+                    winner = shuffle(inputList)[0];
                 }
             }
         }

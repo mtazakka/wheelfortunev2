@@ -206,7 +206,7 @@ const FormularioTexto = () => {
         }
 
         if (!winner) {
-            const allSpecialTeams = [...state.rules.cTeams];
+            const allSpecialTeams = [...state.rules.cTeams, ...state.rules.separatedTeams];
             const regularTeams = inputList.filter(item => {
                 const fuse = new Fuse(allSpecialTeams, { threshold: 0.4 });
                 return fuse.search(item).length === 0;
@@ -218,7 +218,8 @@ const FormularioTexto = () => {
             // });
 
             if (regularTeams.length > 0) {
-                winner = regularTeams[0];
+                const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+                winner = shuffle(regularTeams)[0];
             } else {
                 // Fallback if no regular teams are left, pick any available non-special team
                 const availableTeams = inputList.filter(item => !allSpecialTeams.includes(item));
@@ -497,7 +498,7 @@ const FormularioTexto = () => {
 };
 
 const rouletteProps = {
-    spinDuration: 1.0,
+    spinDuration: 0.3,
     transitionTimingFunction: 'ease-in-out',
     outerBorderColor: "#e0e0e0", outerBorderWidth: 7,
     innerBorderColor: "#ffffff", innerBorderWidth: 7,

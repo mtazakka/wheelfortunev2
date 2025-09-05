@@ -217,17 +217,17 @@ const FormularioTexto = () => {
             //     return fuse.search(item).length === 0;
             // });
 
+            const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
             if (regularTeams.length > 0) {
-                const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
                 winner = shuffle(regularTeams)[0];
             } else {
                 // Fallback if no regular teams are left, pick any available non-special team
                 const availableTeams = inputList.filter(item => !allSpecialTeams.includes(item));
                 if (availableTeams.length > 0) {
-                    winner = availableTeams[0];
+                    winner = shuffle(availableTeams)[0];
                 } else {
                     // Final fallback to prevent errors
-                    winner = inputList[0];
+                    winner = shuffle(inputList)[0];
                 }
             }
         }
